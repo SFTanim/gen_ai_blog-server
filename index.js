@@ -18,6 +18,15 @@ app.use(
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.9sxzsr9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
+// MongoDB client setup
+const client = new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
+});
+
 // Google Generative AI Configuration
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
@@ -32,12 +41,10 @@ const generationConfig = {
     responseMimeType: "text/plain",
 };
 
-
+// Data collect from GEMINI
 app.post('/api/suggest', async (req, res) => {
     try {
         const userInput = req.body.input;
-
-        // Validate input
         if (!userInput) {
             return res.status(400).json({ error: "Input is required." });
         }
@@ -74,9 +81,12 @@ app.post('/api/suggest', async (req, res) => {
         const subtitleMatch = generatedText.match(/Subtitle:\s*(.*)/);
         const descriptionMatch = generatedText.match(/Description:\s*(.*)/);
 
-        const title = titleMatch ? titleMatch[1].trim() : null;
-        const subtitle = subtitleMatch ? subtitleMatch[1].trim() : null;
-        const description = descriptionMatch ? descriptionMatch[1].trim() : null;
+        // Remove asterisks (if any) from the extracted strings
+        const cleanText = (text) => text.replace(/\*\*/g, '').trim();
+
+        const title = titleMatch ? cleanText(titleMatch[1]) : null;
+        const subtitle = subtitleMatch ? cleanText(subtitleMatch[1]) : null;
+        const description = descriptionMatch ? cleanText(descriptionMatch[1]) : null;
 
         if (!title || !subtitle || !description) {
             return res.status(500).json({ error: "Failed to parse title, subtitle, or description from the generated text." });
@@ -93,23 +103,30 @@ app.post('/api/suggest', async (req, res) => {
 
 
 
-
-// MongoDB client setup
-const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    }
-});
-
 // Ping MongoDB
 async function run() {
     try {
+        // await client.connect();
+        // Send a ping to confirm a successful connection
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        const blogCollection = client.db("GenAiBlog").collection("blogs")
+
+        app.get("/blogs", async (req, res) => {
+            const result = await blogCollection.find().toArray()
+            res.send(result)
+        })
+
+        app.post("/blogs", async (req, res) => {
+            const data = req.body;
+            console.log(data);
+            const result = await blogCollection.insertOne(data)
+            res.send(result)
+        })
+
     } finally {
         // Ensures that the client will close when you finish/error
-        await client.close();
+        // await client.close();
     }
 }
 run().catch(console.dir);
