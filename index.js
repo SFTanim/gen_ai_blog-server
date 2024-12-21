@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -121,6 +121,13 @@ async function run() {
             const data = req.body;
             console.log(data);
             const result = await blogCollection.insertOne(data)
+            res.send(result)
+        })
+
+        app.get("/blog/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id)}
+            const result = await blogCollection.findOne(query)
             res.send(result)
         })
 
