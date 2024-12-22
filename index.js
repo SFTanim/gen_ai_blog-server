@@ -110,8 +110,33 @@ async function run() {
         // Send a ping to confirm a successful connection
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
-        const blogCollection = client.db("GenAiBlog").collection("blogs")
 
+        const blogCollection = client.db("GenAiBlog").collection("blogs")
+        const usersCollections = client.db("GenAiBlog").collection("users")
+
+        // Users
+        app.get("/users", async (req, res) => {
+            const result = await usersCollections.find().toArray();
+            res.send(result);
+        });
+
+        app.post("/users", async (req, res) => {
+            const userInfo = req.body;
+            const query = { email: userInfo.email };
+            const existingUser = await usersCollections.findOne(query);
+
+            if (existingUser) {
+                return res.send({
+                    message: "User Email Already Exists",
+                    insertedId: null,
+                });
+            }
+            const result = await usersCollections.insertOne(userInfo);
+            res.send(result);
+        });
+
+
+        // Blog
         app.get("/blogs", async (req, res) => {
             const result = await blogCollection.find().toArray()
             res.send(result)
@@ -126,10 +151,11 @@ async function run() {
 
         app.get("/blog/:id", async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await blogCollection.findOne(query)
             res.send(result)
         })
+
 
     } finally {
         // Ensures that the client will close when you finish/error
