@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+var jwt = require('jsonwebtoken')
 const axios = require('axios');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -109,6 +110,17 @@ async function run() {
 
         const blogCollection = client.db("GenAiBlog").collection("blogs")
         const usersCollections = client.db("GenAiBlog").collection("users")
+
+        // Sending JWT
+        app.post('/jwt', async (req, res) => {
+            const user = req.body
+            const token = jwt.sign(user, process.env.JWT_ACCESS_TOKEN_SECRET)
+            res.send({ token })
+        })
+
+        // Verifying Token
+        
+
 
         // Users
         app.get("/users", async (req, res) => {
