@@ -1,21 +1,20 @@
-require('dotenv').config();
 const express = require('express');
-var jwt = require('jsonwebtoken')
+const app = express()
+const jwt = require("jsonwebtoken");
 const axios = require('axios');
 const cors = require('cors');
+require('dotenv').config();
+const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const app = express();
-const port = process.env.PORT || 5000;
-
-app.use(express.json());
 app.use(
     cors({
-        origin: ["http://localhost:5173"],
+        origin: ["https://tranquil-crepe-88ce75.netlify.app"],
         credentials: true,
     })
 );
+        app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.9sxzsr9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -111,15 +110,30 @@ async function run() {
         const blogCollection = client.db("GenAiBlog").collection("blogs")
         const usersCollections = client.db("GenAiBlog").collection("users")
 
-        // Sending JWT
-        app.post('/jwt', async (req, res) => {
-            const user = req.body
-            const token = jwt.sign(user, process.env.JWT_ACCESS_TOKEN_SECRET)
-            res.send({ token })
-        })
-
         // Verifying Token
-        
+        const verifyingToken = (req, res, next) => {
+            if (!req.headers.authorization) {
+                return res.status(401).send({ message: "unauthorizes access" })
+            }
+            const token = req.headers.authorization.split(" ")[1]
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(401).send({ message: "Unauthorized Access!" });
+                }
+                res.decoded = decoded;
+                next()
+            })
+        }
+
+
+
+        // Sending JWT
+        app.post("/jwt", async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
+            res.send({ token });
+        });
+
 
 
         // Users
@@ -156,7 +170,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/blog/:id", async (req, res) => {
+        app.get("/blog/:id", verifyingToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await blogCollection.findOne(query)
